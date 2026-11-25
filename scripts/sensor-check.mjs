@@ -23,7 +23,7 @@ await page.addInitScript(() => {
   }));
 });
 await page.goto(URL_BASE, { waitUntil: 'networkidle' });
-await page.waitForSelector('.heading-card b');
+await page.waitForSelector('.heading-readout b');
 
 const fire = (alpha) => page.evaluate(async (a) => {
   for (let i = 0; i < 26; i += 1) {
@@ -37,14 +37,28 @@ const fire = (alpha) => page.evaluate(async (a) => {
 const results = [];
 for (const pose of POSES) {
   await fire(pose.alpha);
-  await page.waitForTimeout(220);
-  const reading = await page.evaluate(() => ({
-    heading: document.querySelector('.heading-card b')?.textContent?.trim() ?? null,
-    badge: document.querySelector('.dial-badges .badge')?.textContent?.trim() ?? null,
-  }));
+  await page.waitForFunction((target) => {
+    const v = parseFloat(document.querySelector('.heading-readout b')?.textContent ?? 'NaN');
+    if (!Number.isFinite(v)) return false;
+    const d = Math.abs(v - target);
+    return Math.min(d, 360 - d) <= 8;
+  }, pose.heading, { timeout: 4000 }).catch(() => {});
+  await page.waitForTimeout(150);
+  const reading = await page.evaluate(() => {
+    // 文字是否正立：量測螢幕座標下 .t-door 的實際旋轉角（應為 0°，不受盤面旋轉影響）
+    const t = document.querySelector('.dial .t-door');
+    const m = t?.getScreenCTM();
+    const angle = m ? Math.round(((Math.atan2(m.b, m.a) * 180) / Math.PI) * 10) / 10 : null;
+    return {
+      heading: document.querySelector('.heading-readout b')?.textContent?.trim() ?? null,
+      badge: document.querySelector('.heading-readout small')?.textContent?.trim() ?? null,
+      textAngle: angle,
+    };
+  });
   const got = parseFloat(reading.heading ?? 'NaN');
   const err = Number.isFinite(got) ? Math.min(Math.abs(got - pose.heading), 360 - Math.abs(got - pose.heading)) : 999;
-  results.push({ pose: pose.name, expected: pose.heading, ...reading, errorDeg: Math.round(err * 10) / 10, pass: err <= 8 });
+  const upright = reading.textAngle !== null && Math.min(Math.abs(reading.textAngle), Math.abs(Math.abs(reading.textAngle) - 360)) <= 3;
+  results.push({ pose: pose.name, expected: pose.heading, ...reading, errorDeg: Math.round(err * 10) / 10, upright, pass: err <= 8 && upright });
 }
 await browser.close();
 console.log(JSON.stringify({ results, errors }, null, 2));

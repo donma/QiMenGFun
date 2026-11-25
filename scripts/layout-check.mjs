@@ -49,7 +49,7 @@ for (const s of SCENARIOS) {
       .filter((x) => x.r.width > 0 && (x.r.width < 44 || x.r.height < 32))
       .slice(0, 8).map((x) => ({ label: x.label, w: Math.round(x.r.width), h: Math.round(x.r.height) }));
     const overflow = [...document.querySelectorAll('*')]
-      .filter((el) => el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflowX === 'visible')
+      .filter((el) => !(el instanceof SVGElement) && el.scrollWidth > el.clientWidth + 2 && getComputedStyle(el).overflowX === 'visible')
       .slice(0, 6).map((el) => `${el.tagName}.${el.className?.toString?.().slice(0, 40) ?? ''} (${el.scrollWidth}>${el.clientWidth})`);
     return {
       vw: innerWidth, vh: innerHeight,
@@ -58,8 +58,14 @@ for (const s of SCENARIOS) {
       scrollW: document.documentElement.scrollWidth,
       scrollH: document.documentElement.scrollHeight,
       small, overflow,
+      overlaps: (() => {
+        const rs = { dial: '.compass-wrap', card: '.focus-card', tabbar: '.tabbar', info: '.top-info' };
+        const R = Object.fromEntries(Object.entries(rs).map(([k, s]) => [k, document.querySelector(s)?.getBoundingClientRect() ?? null]));
+        const hit = (a, b) => a && b && a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1;
+        return [['dial', 'card'], ['dial', 'tabbar'], ['dial', 'info'], ['card', 'tabbar'], ['card', 'info']].filter(([a, b]) => hit(R[a], R[b])).map((p) => p.join('×'));
+      })(),
       ju: document.querySelector('.top-ju')?.textContent?.trim().slice(0, 40) ?? null,
-      dirText: document.querySelector('.dial-badges')?.textContent?.trim() ?? null,
+      focus: document.querySelector('.focus-card') ? (() => { const r = document.querySelector('.focus-card').getBoundingClientRect(); return { y: r.y, bottom: r.bottom }; })() : null,
     };
   });
   const dialogCovered = metrics.dial && metrics.dial.x >= -2 && metrics.dial.right <= metrics.vw + 2 && metrics.dial.y >= -2 && metrics.dial.bottom <= metrics.vh + 2;
@@ -82,4 +88,5 @@ for (const s of SCENARIOS) {
 }
 await browser.close();
 writeFileSync(join(CACHE_DIR, 'layout-report.json'), JSON.stringify(results, null, 2));
-console.log(JSON.stringify(results.map((r) => ({ id: r.id, dial: r.metrics.dial && `${Math.round(r.metrics.dial.w)}px`, covered: r.dialogCovered, small: r.metrics.small.length, overflow: r.metrics.overflow.length, errors: r.errors.length })), null, 2));
+console.log(JSON.stringify(results.map((r) => ({ id: r.id, dial: r.metrics.dial && `${Math.round(r.metrics.dial.w)}px`, covered: r.dialogCovered, overlaps: r.metrics.overlaps, overflow: r.metrics.overflow.length, errors: r.errors.length })), null, 2));
+if (results.some((r) => !r.dialogCovered || r.metrics.overlaps.length || r.errors.length)) process.exitCode = 1;

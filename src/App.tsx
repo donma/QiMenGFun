@@ -1,24 +1,24 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { HOUR_PROFILE_ID, computeHourChart } from './domain/qimen/hourEngine';
-import { KE_PROFILE_ID, computeKeChart, keTimeIndex } from './domain/qimen/keEngine';
+import { KE_PROFILE_ID, computeKeChart } from './domain/qimen/keEngine';
 import { analyzeChart, EVENT_PROFILES, type EventKind } from './domain/analysis/eventProfiles';
 import { DIRECTIONS } from './domain/compass/directions';
-import { directionAt } from './domain/compass/directions';
+import { PALACES } from './domain/qimen/tables';
 import type { PalaceId } from './domain/qimen/types';
 import { useHeading } from './sensors/useHeading';
 import { useStableSector } from './sensors/useStableSector';
 import { createCameraManager, type CameraState } from './camera/cameraManager';
 import { composeCapture } from './camera/composite';
 import { TimeController } from './time/TimeController';
-import { QimenDial, type DialLayers } from './components/QimenDial';
+import { QimenDial } from './components/QimenDial';
 import { TopInfoBar } from './components/TopInfoBar';
-import { TimeFlowBar } from './components/TimeFlowBar';
 import { PalaceCard } from './components/PalaceCard';
 import { Onboarding } from './app/Onboarding';
 import { AnalysisPanel } from './app/AnalysisPanel';
 import { TimePanel } from './app/TimePanel';
 import { RecordsPanel } from './app/RecordsPanel';
 import { ToolsPanel } from './app/ToolsPanel';
+import { TONE_CLASS, TONE_LABEL } from './styles/tone';
 import {
   loadLS, saveLS, listRecords, listPhotos, putPhoto, putRecord, deleteRecord, deletePhoto,
   estimateStorage, uuid,
@@ -40,7 +40,7 @@ export default function App() {
   const settings = ls.settings;
   const [tab, setTab] = useState<Tab>('compass');
   const [selected, setSelected] = useState<PalaceId | null>(null);
-  const [sheet, setSheet] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [toast, setToast] = useState('');
   const [records, setRecords] = useState<PhotoRecordMeta[]>([]);
   const [urls, setUrls] = useState<Map<string, string>>(new Map());
@@ -55,7 +55,6 @@ export default function App() {
   const dialWrapRef = useRef<HTMLDivElement>(null);
   const camRef = useRef<ReturnType<typeof createCameraManager> | null>(null);
   const toastTimer = useRef<number | null>(null);
-  const dragRef = useRef<{ lastAngle: number; accum: number } | null>(null);
   const wakeRef = useRef<WakeLockSentinel | null>(null);
   const autoCameraTried = useRef(false);
 
@@ -86,12 +85,11 @@ export default function App() {
     });
   }, []);
 
-  // 時間與設定同步
   useEffect(() => {
     controller.setTimeConfig({ basis: settings.basis, timezone: settings.timezone, longitude: settings.longitude ?? undefined });
   }, [controller, settings.basis, settings.timezone, settings.longitude]);
 
-  // rAF 單一時鐘；背景停止
+  // 單一時鐘；背景頁停止
   useEffect(() => {
     let raf = 0;
     const loop = (perf: number) => {
@@ -110,9 +108,7 @@ export default function App() {
     return () => { cancelAnimationFrame(raf); document.removeEventListener('visibilitychange', onVis); };
   }, [controller]);
 
-  // Wake lock（foreground only）
   useEffect(() => {
-    let cancelled = false;
     const acquire = async () => {
       if (document.hidden || settings.powerSave || !navigator.wakeLock) return;
       try { wakeRef.current = await navigator.wakeLock.request('screen'); } catch { /* unsupported */ }
@@ -120,18 +116,19 @@ export default function App() {
     void acquire();
     const onVis = () => { void acquire(); };
     document.addEventListener('visibilitychange', onVis);
-    return () => { cancelled = true; void wakeRef.current?.release().catch(() => {}); document.removeEventListener('visibilitychange', onVis); void cancelled; };
+    return () => { void wakeRef.current?.release().catch(() => {}); document.removeEventListener('visibilitychange', onVis); };
   }, [settings.powerSave]);
 
-  // 相機生命週期：離開實景頁關閉；返回恢復
+  // ---- 相機 ----
   const startCamera = useCallback(async () => {
     if (!camRef.current) camRef.current = createCameraManager();
-    camRef.current.onEnded = () => { setCamState('ended'); showToast('相機連線中斷，可重試'); };
-    if (videoHostRef.current && !videoHostRef.current.querySelector('video')) {
-      videoHostRef.current.appendChild(camRef.current.video ?? document.createElement('video'));
-    }
+    const cam = camRef.current;
+    cam.onEnded = () => { setCamState('ended'); showToast('相機連線中斷，可點右上「開啟相機」重試'); };
+    const host = videoHostRef.current;
+    if (host && cam.video && !host.contains(cam.video)) host.appendChild(cam.video);
+    setCamState('starting');
     try {
-      const ok = await camRef.current.start();
+      const ok = await cam.start();
       setCamState(ok ? 'running' : 'idle');
       return ok;
     } catch (err) {
@@ -145,34 +142,38 @@ export default function App() {
     setCamState('idle');
   }, []);
 
-  // video 元素可能比 camera manager 晚掛載（首次歡迎頁）；每次渲染檢查並補掛。
+  // video 元素可能比圖層晚掛載（歡迎頁 → 羅盤頁）；每次渲染補掛。
   useEffect(() => {
     const host = videoHostRef.current;
     const v = camRef.current?.video;
     if (host && v && !host.contains(v)) host.appendChild(v);
   });
 
-  // 回到／首次進入實景頁時自動啟動相機；已授權時直接出即時影像，未授權時仍可用純盤。
   useEffect(() => {
-    if (!settings.onboarded || tab !== 'compass' || autoCameraTried.current) return;
-    autoCameraTried.current = true;
-    void startCamera().catch(() => {});
-  }, [settings.onboarded, tab, startCamera]);
-
-  useEffect(() => {
-    if (tab !== 'compass' || !settings.onboarded) {
+    if (!settings.onboarded) return;
+    if (tab !== 'compass') {
       autoCameraTried.current = false;
       stopCamera();
+      return;
     }
-  }, [tab, settings.onboarded, stopCamera]);
+    if (autoCameraTried.current) return;
+    autoCameraTried.current = true;
+    void startCamera();
+  }, [tab, settings.onboarded, startCamera, stopCamera]);
 
   useEffect(() => {
-    const onVis = () => { if (document.hidden) stopCamera(); };
+    const onVis = () => {
+      if (document.hidden) { stopCamera(); autoCameraTried.current = false; }
+      else if (tab === 'compass' && settings.onboarded && !autoCameraTried.current) {
+        autoCameraTried.current = true;
+        void startCamera();
+      }
+    };
     document.addEventListener('visibilitychange', onVis);
     return () => document.removeEventListener('visibilitychange', onVis);
-  }, [stopCamera]);
+  }, [stopCamera, startCamera, tab, settings.onboarded]);
 
-  // 紀錄與縮圖
+  // ---- 紀錄 ----
   const refreshRecords = useCallback(async () => {
     const list = await listRecords();
     setRecords(list);
@@ -180,12 +181,11 @@ export default function App() {
     const photos = await listPhotos();
     for (const p of photos.slice(0, 30)) next.set(p.id, URL.createObjectURL(p.blob));
     setUrls((old) => { old.forEach((u) => URL.revokeObjectURL(u)); return next; });
-    const est = await estimateStorage().catch(() => null);
-    setStorage(est);
+    setStorage(await estimateStorage().catch(() => null));
   }, []);
   useEffect(() => { if (settings.onboarded) void refreshRecords(); }, [settings.onboarded, refreshRecords]);
 
-  // 盤局（memo；不在 rAF 重算）
+  // ---- 盤局（memo；不在 rAF 重算）----
   const chartInput = useMemo(() => ({
     instantMs: time.instantMs, timezone: time.timezone, basis: time.basis,
     longitude: time.longitude ?? undefined, profileId: HOUR_PROFILE_ID,
@@ -193,59 +193,25 @@ export default function App() {
   const hourResult = useMemo(() => computeHourChart(chartInput), [chartInput]);
   const chart = hourResult.status === 'ok' ? hourResult.chart : null;
   const keResult = useMemo(() => computeKeChart({ ...chartInput, profileId: KE_PROFILE_ID }), [chartInput]);
-  const keStatus = keResult.status === 'unverified' ? 'unverified' : keResult.status;
   const event = (EVENT_PROFILES.find((p) => p.id === settings.eventKind) ? settings.eventKind : 'general') as EventKind;
+  const eventLabel = EVENT_PROFILES.find((e) => e.id === event)?.label ?? event;
   const analysis = useMemo(() => (chart ? analyzeChart(chart, event) : null), [chart, event]);
 
-  const layers: DialLayers = useMemo(() => {
-    const custom = settings.customLayers;
-    const on = (k: string) => settings.layerPreset === 'professional' ? k !== 'ke' : settings.layerPreset === 'custom' && custom.includes(k);
-    return {
-      earth: on('earth'), heaven: on('heaven'), stars: on('stars'), doors: on('doors'),
-      deities: on('deities'), outer: on('outer'), light: on('light'), ke: on('ke'),
-    };
-  }, [settings.layerPreset, settings.customLayers]);
-
   const degree = heading.state.displayHeading;
-  const stable = stableSector;
-  const selectedP = selected ? chart?.palaces.find((p) => p.id === selected) : null;
-  const currentDir = degree === null ? null : directionAt(degree);
-  const keIndex = keTimeIndex({ ...chartInput, profileId: KE_PROFILE_ID }, time.instantMs).keIndex;
-
-  // 外圈拖曳：120 分鐘跨度映射角度，跨 0° 累積，明確命中外圈才 pointer capture
-  const onDialPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    const el = dialWrapRef.current;
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const cx = r.left + r.width / 2;
-    const cy = r.top + r.height / 2;
-    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
-    if (dist < r.width * 0.38 || dist > r.width * 0.52) return;
-    const angle = Math.atan2(e.clientY - cy, e.clientX - cx) * 180 / Math.PI;
-    dragRef.current = { lastAngle: angle, accum: 0 };
-    e.currentTarget.setPointerCapture(e.pointerId);
-  };
-  const onDialPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    const d = dragRef.current;
-    if (!d) return;
-    const el = dialWrapRef.current!;
-    const r = el.getBoundingClientRect();
-    const angle = Math.atan2(e.clientY - (r.top + r.height / 2), e.clientX - (r.left + r.width / 2)) * 180 / Math.PI;
-    let delta = angle - d.lastAngle;
-    if (delta > 180) delta -= 360;
-    if (delta < -180) delta += 360;
-    d.accum += delta;
-    d.lastAngle = angle;
-    if (Math.abs(d.accum) >= 3) {
-      const minutes = -(d.accum / 360) * 120;
-      controller.setInstant(time.instantMs + minutes * 60_000, performance.now());
-      d.accum = 0;
-    }
-  };
-  const onDialPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    dragRef.current = null;
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId);
-  };
+  // 盤面旋轉只更新一個 CSS 變數，不重繪約 200 個 SVG 節點
+  useEffect(() => {
+    dialWrapRef.current?.style.setProperty('--rot', `${degree ?? 0}deg`);
+  }, [degree, tab]);
+  const facingDirDef = stableSector === null ? null : DIRECTIONS.find((d) => d.deg === stableSector) ?? null;
+  const focusId: PalaceId | null = selected ?? facingDirDef?.palaceId ?? null;
+  const focusDef = focusId ? PALACES.find((p) => p.id === focusId) ?? null : null;
+  const focusPalace = focusId ? chart?.palaces.find((p) => p.id === focusId) ?? null : null;
+  const focusAssess = focusId ? analysis?.directions.find((d) => d.palaceId === focusId) ?? null : null;
+  const focusFav = focusAssess?.favorability ?? 'unknown';
+  const goodDirs = useMemo(() => (analysis?.directions ?? [])
+    .filter((d) => d.favorability === 'favorable')
+    .sort((a, b) => Number(b.yongshen) - Number(a.yongshen) || b.reasons.length - a.reasons.length)
+    .slice(0, 4), [analysis]);
 
   const capture = async () => {
     if (!sceneRef.current) return;
@@ -299,7 +265,7 @@ export default function App() {
         const lon = Math.round(pos.coords.longitude * 10000) / 10000;
         patchSettings({ longitude: lon });
         setGpsStatus(`GPS 精度 ±${pos.coords.accuracy.toFixed(0)}m · ${new Date(pos.timestamp).toLocaleTimeString('zh-Hant')}`);
-        showToast(`已取得經度 ${lon}°（仅此一次）`);
+        showToast(`已取得經度 ${lon}°（僅此一次）`);
       },
       () => { setGpsStatus('GPS 遭拒；可手填經度'); showToast('GPS 遭拒；可手填經度'); },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
@@ -307,6 +273,7 @@ export default function App() {
   };
 
   const person: Person | null = ls.persons.find((p) => p.id === settings.currentPersonId) ?? null;
+  const camOn = camState === 'running';
 
   if (!settings.onboarded) {
     return <>
@@ -314,90 +281,102 @@ export default function App() {
         onStart={() => {
           patchSettings({ onboarded: true });
           setTab('compass');
-          void startCamera().then((ok) => showToast(ok ? '相機已開啟，實景背景使用中' : '相機未授權；仍可使用純盤，點左側「實景」可重試'));
+          autoCameraTried.current = true;
+          void startCamera().then((ok) => showToast(ok ? '相機已開啟，實景背景使用中' : '相機未授權；仍可使用純盤，點右上「開啟相機」可重試'));
         }}
         onRequestCamera={async () => { const ok = await startCamera(); showToast(ok ? '相機已授權' : '相機未授權；仍可使用純盤'); }}
         onRequestSensor={async () => { const p = await heading.requestPermission(); showToast(p === 'granted' ? '方向權限已授權' : '可稍後手動校正方位'); }}
         cameraLabel={camState === 'running' ? '相機已開啟' : '允許相機'}
         sensorLabel={heading.permission === 'granted' ? '方向已授權' : '請求方向權限'}
       />
+      <div className="scene-media" ref={videoHostRef} style={{ display: 'none' }} aria-hidden="true" />
       {toast && <div className="toast" role="status">{toast}</div>}
     </>;
   }
 
   return (
     <div className="app" ref={sceneRef}>
+      {/* 圖層順序（由下而上）：純色底 → 相機影像 → 固定冷灰藍遮罩 → 上下漸層 → UI */}
+      {!camOn && <div className="scene-fallback" aria-hidden="true" />}
       <div className="scene-media" ref={videoHostRef} aria-hidden="true" />
-      <div className="scene-fallback" aria-hidden="true" />
+      <div className="scene-mask" aria-hidden="true" />
       <div className="scene-scrim top" aria-hidden="true" />
       <div className="scene-scrim bottom" aria-hidden="true" />
 
       <header className="brand-bar">
-        <button className="icon-btn" onClick={() => setTab('tools')} aria-label="工具選單">☰</button>
         <div className="brand-title">QiMenGFun <span>奇門吉方</span></div>
-        <button className="icon-btn" onClick={() => setTab('tools')} aria-label="設定">⚙</button>
       </header>
 
       <TopInfoBar chart={chart} time={time} longitude={settings.longitude} gpsStatus={gpsStatus} />
 
-      {tab === 'compass' && <>
-        <aside className="rail left" aria-label="快捷功能">
-          <button className="rail-btn on" onClick={() => { setTab('compass'); if (camState !== 'running') void startCamera(); }}><span>◉</span>實景</button>
-          <button className="rail-btn" onClick={() => setTab('time')}><span>◷</span>時光</button>
-          <button className="rail-btn" onClick={() => controller.play(performance.now())}><span>▶</span>流轉</button>
-          <button className="rail-btn" onClick={() => setTab('analysis')}><span>▦</span>九宮</button>
-          <button className="rail-btn" onClick={() => setTab('tools')}><span>☷</span>盤層</button>
-        </aside>
-
-        <div className="compass-wrap" ref={dialWrapRef} onPointerDown={onDialPointerDown} onPointerMove={onDialPointerMove} onPointerUp={onDialPointerUp}>
-          <QimenDial
-            chart={chart} heading={degree}
-            headingQuality={degree === null ? 'unavailable' : heading.state.quality}
-            selected={selected} onSelect={(id) => { setSelected(id); setSheet(false); }}
-            assessment={analysis} lightTheme={settings.lightTheme} layers={layers}
-            reducedMotion={settings.reducedMotion || settings.powerSave} demo={degree === null}
-          />
-          <div className="dial-badges">
-            <span className={`badge ${degree === null ? 'muted' : ''}`}>{degree === null ? '示範方位' : `${degree.toFixed(0)}° ${currentDir?.name ?? ''}`}</span>
-            <span className="badge">{keStatus === 'unverified' ? `第 ${keIndex + 1} 刻（規則待驗證）` : '刻盤'}</span>
+      {tab === 'compass' && (
+        <main className="compass-screen">
+          <div className="dial-stage">
+            <div className="compass-wrap" ref={dialWrapRef}>
+              <QimenDial
+                chart={chart} hasHeading={degree !== null}
+                headingQuality={degree === null ? 'unavailable' : heading.state.quality}
+                facing={stableSector}
+                selected={selected} onSelect={(id) => { setSelected((cur) => (cur === id ? null : id)); }}
+                assessment={analysis} reducedMotion={settings.reducedMotion || settings.powerSave}
+              />
+            </div>
+            <div className="stage-chip heading-readout" aria-live="polite">
+              <span>朝向</span><b>{degree === null ? '—' : `${degree.toFixed(0)}°`}</b>
+              <small>{facingDirDef ? facingDirDef.name : degree === null ? '無感測' : '交界'}</small>
+            </div>
+            <div className="stage-actions">
+              {!camOn && <button className="pill-btn" onClick={() => void startCamera()}>{camState === 'starting' ? '相機啟動中…' : '開啟相機'}</button>}
+              {time.mode !== 'live' && <button className="pill-btn warn" onClick={() => controller.toLive(performance.now())}>預覽中 · 回到現在</button>}
+            </div>
+            <button className="round-btn left" onClick={() => setShowCalibration(true)} aria-label="校正方位"><span>⌖</span><i>校正</i></button>
+            <button className="round-btn right primary" onClick={capture} aria-label="拍照"><span>◉</span><i>拍照</i></button>
           </div>
-        </div>
 
-        <aside className="rail right" aria-label="方位資訊">
-          <div className="heading-card glass">
-            <span>朝向</span>
-            <b>{degree === null ? '—' : degree.toFixed(0)}°</b>
-            <small className="wide-only">{currentDir?.name ?? '—'} · {heading.state.source === 'manual' ? '手動' : heading.state.quality}</small>
-            <button className="mini-btn" onClick={() => setShowCalibration(true)}>校正</button>
-          </div>
-          <div className="direction-card glass wide-only">
-            <span>宮位</span>
-            <b>{currentDir?.short ?? '—'}</b>
-            <small>時盤：{selectedP?.door ?? '—'}</small>
-            <small>穩定扇區 {stable === null ? '—' : directionAt(stable).short}</small>
-          </div>
-          <div className="verdict-card glass">
-            <span className="wide-only">事件</span>
-            <small>{EVENT_PROFILES.find((e) => e.id === event)?.label}</small>
-            {camState !== 'running' && <button className="mini-btn" onClick={() => void startCamera()}>開相機</button>}
-            <button className="mini-btn" onClick={() => setTab('analysis')}>分析</button>
-            <button className="mini-btn" onClick={capture}>拍照</button>
-          </div>
-        </aside>
+          <section className="focus-card glass" aria-label="方位解讀">
+            <div className="focus-head">
+              <div className="focus-title">
+                {focusDef
+                  ? <>{selected ? '已選' : '正對'} <b>{focusDef.short}</b><em>{focusDef.deg === null ? '中宮' : `${focusDef.deg}° ${focusDef.name}`}</em></>
+                  : <span className="muted">對準想了解的方位，或點盤上宮位</span>}
+              </div>
+              <select className="event-select" value={event} onChange={(e) => patchSettings({ eventKind: e.target.value })} aria-label="事件類別">
+                {EVENT_PROFILES.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
+              </select>
+            </div>
+            {focusPalace && focusDef ? (
+              <>
+                <div className="focus-main">
+                  <span className={`verdict-badge ${TONE_CLASS[focusFav]}`}>{TONE_LABEL[focusFav]}</span>
+                  <b>{focusPalace.door ?? '中宮'}</b>
+                  <span>{focusPalace.stars.join('、') || '—'}</span>
+                  <span>{focusPalace.deity ?? ''}</span>
+                  <button className="link-btn" onClick={() => setDetailOpen(true)}>詳情 ›</button>
+                </div>
+                <p className="focus-reason">{focusAssess?.reasons.slice(0, 2).join('；') || (focusFav === 'unknown' ? '尚無足夠依據，不給吉凶判斷。' : '')}</p>
+              </>
+            ) : null}
+            <div className="good-row">
+              <span className="good-label">吉方</span>
+              <div className="good-chips">
+                {goodDirs.length === 0
+                  ? <span className="muted">此刻沒有明確吉方（{eventLabel}）</span>
+                  : goodDirs.map((d) => {
+                    const def = PALACES.find((p) => p.id === d.palaceId)!;
+                    const pal = chart?.palaces.find((p) => p.id === d.palaceId);
+                    return <button key={d.palaceId} className={`chip ${selected === d.palaceId ? 'on' : ''}`} onClick={() => setSelected(d.palaceId as PalaceId)}>{def.name}{def.deg === null ? '' : ` ${def.deg}°`} · {pal?.door}</button>;
+                  })}
+              </div>
+            </div>
+          </section>
+        </main>
+      )}
 
-        {selected && (
-          <PalaceCard chart={chart} palaceId={selected} assessment={analysis}
-            eventLabel={EVENT_PROFILES.find((e) => e.id === event)?.label ?? event}
-            heading={degree} expanded={sheet} onExpand={setSheet}
-            onClose={() => { setSelected(null); setSheet(false); }}
-            onSelect={(id) => setSelected(id)} />
-        )}
-
-        <TimeFlowBar state={time} onSeek={(ms) => controller.setInstant(ms, performance.now())}
-          onPlay={() => controller.play(performance.now())} onNow={() => controller.toLive(performance.now())}
-          onSpeed={(s) => controller.setSpeed(s, performance.now())}
-          onDirection={(d) => controller.setDirection(d, performance.now())} />
-      </>}
+      {tab === 'compass' && detailOpen && focusId && (
+        <PalaceCard chart={chart} palaceId={focusId} assessment={analysis}
+          eventLabel={eventLabel} heading={degree} expanded onExpand={() => setDetailOpen(false)}
+          onClose={() => setDetailOpen(false)} onSelect={(id) => setSelected(id as PalaceId)} />
+      )}
 
       {tab !== 'compass' && (
         <main className="panel-host">
@@ -405,12 +384,15 @@ export default function App() {
             <button className="icon-btn" onClick={() => setTab('compass')} aria-label="返回羅盤">←</button>
             <h1>{TABS.find((t) => t.id === tab)?.label}</h1>
           </div>
-          {tab === 'analysis' && <AnalysisPanel chart={chart} keStatus={keStatus === 'unverified' ? '刻家規則尚待驗證' : keStatus}
-            analysis={analysis} event={event} onEvent={(e) => patchSettings({ eventKind: e })}
-            person={person} selected={selected} onSelect={(id) => { setSelected(id); setSheet(false); setTab('compass'); }} onToast={showToast} />}
-          {tab === 'time' && <TimePanel time={time} onSetInstant={(ms) => controller.setInstant(ms, performance.now())}
+          {tab === 'analysis' && <AnalysisPanel chart={chart} analysis={analysis} event={event}
+            onEvent={(e) => patchSettings({ eventKind: e })} person={person} selected={selected}
+            onSelect={(id) => { setSelected(id); setTab('compass'); }} onToast={showToast} />}
+          {tab === 'time' && <TimePanel time={time} event={event} onEvent={(e) => patchSettings({ eventKind: e })}
+            onSetInstant={(ms) => controller.setInstant(ms, performance.now())}
+            onNow={() => controller.toLive(performance.now())}
+            onJump={(ms) => { controller.setInstant(ms, performance.now()); setTab('compass'); }}
             onSetBasis={(b) => patchSettings({ basis: b })} onSetLongitude={(lon) => patchSettings({ longitude: lon })}
-            onRequestGps={requestGps} gpsStatus={gpsStatus} chart={chart} event={event} onToast={showToast} />}
+            onRequestGps={requestGps} gpsStatus={gpsStatus} onToast={showToast} />}
           {tab === 'records' && <RecordsPanel records={records} urls={urls} onView={setDetail}
             onDelete={async (r) => { await deleteRecord(r.id); if (r.photoId) await deletePhoto(r.photoId); await refreshRecords(); showToast('已刪除'); }} onToast={showToast} />}
           {tab === 'tools' && <ToolsPanel settings={settings} persons={ls.persons} storage={storage}
@@ -420,13 +402,13 @@ export default function App() {
             onDeletePerson={(id) => setLs((prev) => { const next = { ...prev, persons: prev.persons.filter((x) => x.id !== id), settings: { ...prev.settings, currentPersonId: prev.settings.currentPersonId === id ? null : prev.settings.currentPersonId } }; saveLS(next); return next; })}
             onSelectPerson={(id) => patchSettings({ currentPersonId: id })}
             onCalibrate={() => setShowCalibration(true)} onRequestSensor={async () => { const p = await heading.requestPermission(); showToast(p === 'granted' ? '方向權限已授權' : '可手動校正'); }}
-            gpsStatus={gpsStatus} onToast={showToast} />}
+            onToast={showToast} />}
         </main>
       )}
 
       <nav className="tabbar" aria-label="主分頁">
         {TABS.map((t) => (
-          <button key={t.id} className={`tab ${tab === t.id ? 'on' : ''}`} onClick={() => { setTab(t.id); if (t.id !== 'compass') { setSelected(null); setSheet(false); } }} aria-current={tab === t.id ? 'page' : undefined}>
+          <button key={t.id} className={`tab ${tab === t.id ? 'on' : ''}`} onClick={() => { setTab(t.id); setDetailOpen(false); }} aria-current={tab === t.id ? 'page' : undefined}>
             <span className="tab-icon">{t.icon}</span><span>{t.label}</span>
           </button>
         ))}
@@ -435,12 +417,12 @@ export default function App() {
       {showCalibration && (
         <div className="modal-backdrop" onClick={() => setShowCalibration(false)}>
           <div className="modal glass" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="方位校正">
-            <h2>手動校正方位</h2>
-            <p className="hint">讓目前鏡頭朝向對齐所選方位。手動校正不等同已知真北；偏移只保存於本次執行。</p>
+            <h2>校正方位</h2>
+            <p className="hint">把手機鏡頭對準你<b>已知的方位</b>（例如用另一個指南針確認），再點下面對應的方位，讓盤面與真實一致。偏移只保存於本次使用。</p>
             <div className="calibrate-grid">
-              {DIRECTIONS.map((d) => <button key={d.deg} className="btn" onClick={() => { heading.calibrateTo(d.deg); setShowCalibration(false); showToast(`已校正至 ${d.name}`); }}>{d.name} {d.deg}°</button>)}
+              {DIRECTIONS.map((d) => <button key={d.deg} className="btn" onClick={() => { heading.calibrateTo(d.deg); setShowCalibration(false); showToast(`已校正：目前正對${d.name}`); }}>{d.name}</button>)}
             </div>
-            <button className="btn" onClick={() => { heading.setManualOffsetDeg(0); setShowCalibration(false); showToast('已重設校正'); }}>重設</button>
+            <button className="btn" onClick={() => { heading.setManualOffsetDeg(0); setShowCalibration(false); showToast('已重設校正'); }}>重設校正</button>
           </div>
         </div>
       )}
@@ -450,8 +432,8 @@ export default function App() {
           <div className="modal glass detail-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="紀錄詳情">
             <h2>{detail.title || '紀錄詳情'}</h2>
             {detail.photoId && urls.get(detail.photoId) && <img className="detail-photo" src={urls.get(detail.photoId)} alt={detail.title} />}
-            <div className="hint">拍攝 {detail.capturedAt} · 盤局時刻 {detail.chartInstant} {detail.simulated ? '（模擬時間）' : ''}</div>
-            <div className="hint">盤局 {detail.chart?.term ?? '—'} · {detail.chart?.dun === 'yang' ? '陽遁' : '陰遁'}{detail.chart?.ju ?? '—'}局 · hash {detail.chartHash.slice(0, 8)}</div>
+            <div className="hint">拍攝 {new Date(detail.capturedAt).toLocaleString('zh-Hant')} · 盤局時刻 {new Date(detail.chartInstant).toLocaleString('zh-Hant')} {detail.simulated ? '（模擬時間）' : ''}</div>
+            <div className="hint">盤局 {detail.chart?.term ?? '—'} · {detail.chart?.dun === 'yang' ? '陽遁' : '陰遁'}{detail.chart?.ju ?? '—'}局</div>
             <button className="btn" onClick={() => setDetail(null)}>關閉</button>
           </div>
         </div>

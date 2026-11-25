@@ -22,6 +22,20 @@ export interface CompositeInput {
 }
 
 let fontDataUri: string | null = null;
+
+/** 拍照時把頁面套用在盤面上的樣式（字級、描邊、旋轉）逐一寫進複製的 SVG；獨立 SVG 看不到頁面 CSS。 */
+const BAKE_PROPS = ['font-family', 'font-size', 'font-weight', 'letter-spacing', 'paint-order', 'stroke', 'stroke-width', 'stroke-linejoin', 'display', 'opacity', 'transform', 'transform-origin'] as const;
+function bakeStyles(orig: Element, clone: Element): void {
+  const o = Array.from(orig.querySelectorAll('*'));
+  const c = Array.from(clone.querySelectorAll('*'));
+  o.forEach((el, i) => {
+    const target = c[i] as SVGElement | undefined;
+    if (!target) return;
+    const cs = getComputedStyle(el);
+    for (const p of BAKE_PROPS) target.style.setProperty(p, cs.getPropertyValue(p));
+    target.style.setProperty('animation', 'none');
+  });
+}
 async function getFontDataUri(): Promise<string> {
   if (fontDataUri) return fontDataUri;
   try {
@@ -64,6 +78,9 @@ export async function composeCapture(input: CompositeInput): Promise<Blob> {
     const dr = input.dialEl.getBoundingClientRect();
     const svg = input.dialEl.cloneNode(true) as SVGSVGElement;
     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+    bakeStyles(input.dialEl, svg);
+    svg.setAttribute('width', String(Math.round(dr.width * scale)));
+    svg.setAttribute('height', String(Math.round(dr.height * scale)));
     const font = await getFontDataUri();
     if (font) {
       const style = document.createElementNS('http://www.w3.org/2000/svg', 'style');

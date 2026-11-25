@@ -22,6 +22,32 @@
 .nine-cell.tone-bad { border-color: rgba(221,102,117,.7); }
 .nine-cell.tone-mixed { border-color: rgba(242,200,121,.7); }
 .nine-cell.is-selected { outline: 2px solid var(--good); }
+
+/* 通用：可收合說明、時間頁 */
+details.more { border-top: 1px solid var(--glass-border); padding-top: 10px; }
+details.more:first-child { border-top: 0; padding-top: 0; }
+details.more > summary { list-style: none; cursor: pointer; min-height: 40px; display: flex; align-items: center; justify-content: space-between; font-size: 15px; color: var(--text); }
+details.more > summary::after { content: '›'; color: var(--line); font-size: 20px; transition: transform .2s; }
+details.more[open] > summary::after { transform: rotate(90deg); }
+details.more > summary::-webkit-details-marker { display: none; }
+.now-line { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.now-line b { font-size: 34px; color: var(--text); font-family: var(--font-serif); }
+.now-line span { font-size: 13px; color: #A6C6DE; }
+.now-line em { font-style: normal; font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--glass-border); }
+.now-line em.live { color: var(--good); border-color: var(--good); }
+.now-line em.preview { color: var(--mixed); border-color: var(--mixed); }
+.step-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 10px; }
+.step-row .btn { padding: 0 2px; font-size: 13px; }
+.slot-list { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.slot { position: relative; display: grid; grid-template-columns: 96px 1fr; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px; text-align: left; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); background: rgba(11,44,68,.4); color: var(--text); }
+.slot.now { border-color: var(--good); background: rgba(54,235,192,.1); }
+.slot-time { display: flex; flex-direction: column; }
+.slot-time b { font-family: var(--font-serif); font-size: 17px; }
+.slot-time small { font-size: 11px; color: #A6C6DE; }
+.slot-good { display: flex; flex-wrap: wrap; gap: 5px; }
+.chip-mini { font-style: normal; padding: 3px 9px; border-radius: 999px; font-size: 12px; color: var(--text); background: rgba(54,235,192,.14); border: 1px solid rgba(54,235,192,.5); }
+.slot-now { position: absolute; top: 6px; right: 10px; font-size: 11px; color: var(--good); }
+.panel-section .muted { font-size: 13px; }
 .nine-name { font-size: 11px; color: var(--neutral); }
 .nine-main { font-family: var(--font-serif); font-size: 20px; color: var(--good); }
 .nine-star { font-size: 12px; color: #C2AAFF; }
