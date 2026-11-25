@@ -38,9 +38,9 @@ export function TimePanel({ time, onSetInstant, onSetBasis, onSetLongitude, onRe
 
   const heat = useMemo(() => {
     const cells: Array<{ timeMs: number; favors: Map<number, string> }> = [];
-    const start = Math.floor(time.instantMs / (10 * 60_000)) * 10 * 60_000;
-    for (let i = 0; i < 12; i += 1) {
-      const t = start + i * 10 * 60_000;
+    const start = Math.floor(time.instantMs / (20 * 60_000)) * 20 * 60_000;
+    for (let i = 0; i < 6; i += 1) {
+      const t = start + i * 20 * 60_000;
       const r = computeHourChart({ instantMs: t, timezone: time.timezone, basis: time.basis, longitude: time.longitude ?? undefined, profileId: HOUR_PROFILE_ID });
       const favors = new Map<number, string>();
       if (r.status === 'ok') analyzeChart(r.chart, event).directions.forEach((d) => favors.set(d.palaceId, d.favorability));
@@ -123,21 +123,27 @@ export function TimePanel({ time, onSetInstant, onSetBasis, onSetLongitude, onRe
       </section>
 
       <section className="panel-section glass">
-        <h2>熱力圖（8 方 × 未來 2 小時）</h2>
+        <h2>熱力圖（8 方 × 每格 20 分鐘）</h2>
         <p className="hint">目前盤局：{chart?.term ?? '—'} · {chart ? `${chart.dun === 'yang' ? '陽遁' : '陰遁'}${chart.ju}局` : '—'}</p>
+        <div className="heat-legend">
+          <span><i className="lg-good" />宜</span>
+          <span><i className="lg-mixed" />混合</span>
+          <span><i className="lg-bad" />宜慎</span>
+          <span><i className="lg-unknown" />未知</span>
+        </div>
         <div className="heatmap">
-          <div className="heat-row heat-head"><span>方位</span>{heat.map((h) => <span key={h.timeMs}>{new Date(h.timeMs).toLocaleTimeString('zh-Hant', { hour: '2-digit', minute: '2-digit', hour12: false })}</span>)}</div>
+          <div className="heat-row heat-head"><span>方位</span>{heat.map((h) => <span key={h.timeMs}>{civilParts(h.timeMs, time.timezone).hour.toString().padStart(2, '0')}:{civilParts(h.timeMs, time.timezone).minute.toString().padStart(2, '0')}</span>)}</div>
           {PALACES.filter((p) => p.id !== 5).map((p) => (
             <div className="heat-row" key={p.id}>
               <button className="heat-name" onClick={() => onSetInstant(heat[0]!.timeMs)}>{p.short}</button>
               {heat.map((h) => {
                 const tone = h.favors.get(p.id) ?? 'unknown';
-                return <button key={h.timeMs} className={`heat-cell ${TONE_CLASS[tone as 'favorable']}`} onClick={() => onSetInstant(h.timeMs)} aria-label={`${p.short} ${new Date(h.timeMs).toLocaleTimeString('zh-Hant')} ${tone}`} />;
+                return <button key={h.timeMs} className={`heat-cell ${TONE_CLASS[tone as 'favorable']}`} onClick={() => onSetInstant(h.timeMs)} aria-label={`${p.short} ${civilParts(h.timeMs, time.timezone).hour}:${String(civilParts(h.timeMs, time.timezone).minute).padStart(2, '0')} ${tone}`} title={`${p.short} · 事件 ${EVENT_PROFILES.find((e) => e.id === event)?.label} · ${tone}`} />;
               })}
             </div>
           ))}
         </div>
-        <p className="hint">格子切換到對應時刻；熱力圖僅是由已驗證時家盤與規則推導的彙總，不表示物理能量。</p>
+        <p className="hint">點格子會切換到該時段起點；颜色由已驗證時家盤與基礎象意規則產生，僅供參考，不表示物理能量。事件：{EVENT_PROFILES.find((e) => e.id === event)?.label}。</p>
       </section>
 
       <section className="panel-section glass">

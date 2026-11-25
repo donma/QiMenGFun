@@ -40,6 +40,7 @@ export function ToolsPanel({ settings, persons, storage, onSettings, onAddPerson
       <section className="panel-section glass">
         <h2>人物（選用）</h2>
         <p className="hint">首次不強制建人。年命分析至少需要可信出生年；立春附近缺時間不猜年干。</p>
+        <p className="person-current">目前選用：<b>{persons.find((p) => p.id === settings.currentPersonId)?.name ?? '無'}</b>{settings.currentPersonId === null && '（不影響基礎盤）'}</p>
         <div className="person-list">
           <button className={`person-pill ${settings.currentPersonId === null ? 'on' : ''}`} onClick={() => onSelectPerson(null)}>不選人物</button>
           {persons.map((p) => (
@@ -50,7 +51,7 @@ export function ToolsPanel({ settings, persons, storage, onSettings, onAddPerson
             </div>
           ))}
         </div>
-        <button className="btn" onClick={() => setEditing(emptyPerson())}>＋ 新增人物</button>
+        <button className="btn primary person-add" onClick={() => setEditing(emptyPerson())}>＋ 新增人物</button>
         {editing && (
           <div className="person-editor">
             <label>名稱（必填）<input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></label>

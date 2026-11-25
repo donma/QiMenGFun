@@ -8,6 +8,10 @@
 .empty-state { text-align: center; padding: 32px 18px; }
 
 .event-row, .person-list, .layer-checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.person-current { font-size: 13px; color: #A6C6DE; margin: 10px 0 14px; }
+.person-current b { color: var(--good); font-size: 14px; }
+.person-list { margin-bottom: 4px; }
+.person-add { width: 100%; margin-top: 18px; }
 .event-pill { min-height: 42px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--glass-border); background: transparent; font-size: 14px; }
 .event-pill.on { color: var(--good); border-color: var(--good); background: rgba(54,235,192,.1); }
 
@@ -38,11 +42,18 @@
 .select-label { width: 100%; }
 .select-label select { width: 100%; }
 
-.heatmap { overflow-x: auto; padding-bottom: 6px; }
-.heat-row { display: grid; grid-template-columns: 54px repeat(12, minmax(22px, 1fr)); gap: 4px; align-items: center; margin-bottom: 4px; }
-.heat-head span { font-size: 10px; color: var(--neutral); text-align: center; white-space: nowrap; }
-.heat-name { min-height: 32px; border: 0; background: transparent; color: var(--line); font-size: 12px; text-align: left; }
-.heat-cell { min-height: 30px; border-radius: 5px; border: 1px solid var(--glass-border); background: rgba(114,213,255,.08); }
+.heat-legend { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 12px; font-size: 12px; color: #A6C6DE; }
+.heat-legend span { display: inline-flex; align-items: center; gap: 5px; }
+.heat-legend i { width: 14px; height: 14px; border-radius: 4px; display: inline-block; border: 1px solid var(--glass-border); }
+.heat-legend .lg-good { background: rgba(54,235,192,.65); }
+.heat-legend .lg-mixed { background: rgba(242,200,121,.55); }
+.heat-legend .lg-bad { background: rgba(221,102,117,.55); }
+.heat-legend .lg-unknown { background: rgba(114,213,255,.1); }
+.heatmap { width: 100%; padding-bottom: 6px; }
+.heat-row { display: grid; grid-template-columns: 48px repeat(6, 1fr); gap: 5px; align-items: center; margin-bottom: 5px; }
+.heat-head span { font-size: 11px; color: #A6C6DE; text-align: center; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.heat-name { min-height: 36px; border: 0; background: transparent; color: var(--line); font-size: 13px; text-align: left; }
+.heat-cell { min-height: 38px; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(114,213,255,.1); }
 .heat-cell.tone-good { background: rgba(54,235,192,.6); border-color: var(--good); }
 .heat-cell.tone-bad { background: rgba(221,102,117,.5); border-color: var(--bad); }
 .heat-cell.tone-mixed { background: rgba(242,200,121,.4); border-color: var(--mixed); }

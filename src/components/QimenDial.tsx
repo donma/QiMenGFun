@@ -171,10 +171,12 @@ export const QimenDial = memo(function QimenDial({
         <g role="button" tabIndex={0} aria-label="中宮太極" onClick={() => onSelect(5)} onKeyDown={(e) => { if (e.key === 'Enter') onSelect(5); }}>
           <circle cx={C} cy={C} r={R.taiji} fill="#061a2c" stroke="rgba(114,213,255,.85)" strokeWidth="1.8" />
           <g className={reducedMotion ? '' : 'taiji-spin'}>
-            <circle cx={C} cy={C} r="47" fill="#08233b" />
-            <path d={`M ${C} ${C - 47} A 47 47 0 0 1 ${C} ${C + 47} A 23.5 23.5 0 0 1 ${C} ${C} A 23.5 23.5 0 0 0 ${C} ${C - 47} Z`} fill="#EAF9FF" />
-            <circle cx={C} cy={C - 23.5} r="8.5" fill="#041323" />
-            <circle cx={C} cy={C + 23.5} r="8.5" fill="#EAF9FF" />
+            <circle cx={C} cy={C} r="47" fill="#06182a" stroke="#9FD9F5" strokeWidth="1.4" />
+            <path d={`M ${C} ${C - 47} A 47 47 0 0 1 ${C} ${C + 47} A 23.5 23.5 0 0 1 ${C} ${C} A 23.5 23.5 0 0 0 ${C} ${C - 47} Z`} fill="#F2FBFF" />
+            <circle cx={C} cy={C - 23.5} r="10.5" fill="#03101c" stroke="#72D5FF" strokeWidth="1.6" />
+            <circle cx={C} cy={C + 23.5} r="10.5" fill="#F2FBFF" stroke="#041323" strokeWidth="1.6" />
+            <circle cx={C - 3} cy={C - 26.5} r="2.4" fill="#9FD9F5" opacity=".8" />
+            <circle cx={C - 3} cy={C + 20.5} r="2.4" fill="#FFFFFF" opacity=".9" />
           </g>
         </g>
       </g>

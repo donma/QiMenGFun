@@ -57,6 +57,7 @@ export default function App() {
   const toastTimer = useRef<number | null>(null);
   const dragRef = useRef<{ lastAngle: number; accum: number } | null>(null);
   const wakeRef = useRef<WakeLockSentinel | null>(null);
+  const autoCameraTried = useRef(false);
 
   const controllerRef = useRef<TimeController | null>(null);
   if (!controllerRef.current) {
@@ -144,8 +145,25 @@ export default function App() {
     setCamState('idle');
   }, []);
 
+  // video 元素可能比 camera manager 晚掛載（首次歡迎頁）；每次渲染檢查並補掛。
   useEffect(() => {
-    if (tab !== 'compass' || !settings.onboarded) stopCamera();
+    const host = videoHostRef.current;
+    const v = camRef.current?.video;
+    if (host && v && !host.contains(v)) host.appendChild(v);
+  });
+
+  // 回到／首次進入實景頁時自動啟動相機；已授權時直接出即時影像，未授權時仍可用純盤。
+  useEffect(() => {
+    if (!settings.onboarded || tab !== 'compass' || autoCameraTried.current) return;
+    autoCameraTried.current = true;
+    void startCamera().catch(() => {});
+  }, [settings.onboarded, tab, startCamera]);
+
+  useEffect(() => {
+    if (tab !== 'compass' || !settings.onboarded) {
+      autoCameraTried.current = false;
+      stopCamera();
+    }
   }, [tab, settings.onboarded, stopCamera]);
 
   useEffect(() => {
@@ -293,7 +311,11 @@ export default function App() {
   if (!settings.onboarded) {
     return <>
       <Onboarding
-        onStart={() => { patchSettings({ onboarded: true }); setTab('compass'); }}
+        onStart={() => {
+          patchSettings({ onboarded: true });
+          setTab('compass');
+          void startCamera().then((ok) => showToast(ok ? '相機已開啟，實景背景使用中' : '相機未授權；仍可使用純盤，點左側「實景」可重試'));
+        }}
         onRequestCamera={async () => { const ok = await startCamera(); showToast(ok ? '相機已授權' : '相機未授權；仍可使用純盤'); }}
         onRequestSensor={async () => { const p = await heading.requestPermission(); showToast(p === 'granted' ? '方向權限已授權' : '可稍後手動校正方位'); }}
         cameraLabel={camState === 'running' ? '相機已開啟' : '允許相機'}
@@ -357,6 +379,7 @@ export default function App() {
           <div className="verdict-card glass">
             <span className="wide-only">事件</span>
             <small>{EVENT_PROFILES.find((e) => e.id === event)?.label}</small>
+            {camState !== 'running' && <button className="mini-btn" onClick={() => void startCamera()}>開相機</button>}
             <button className="mini-btn" onClick={() => setTab('analysis')}>分析</button>
             <button className="mini-btn" onClick={capture}>拍照</button>
           </div>

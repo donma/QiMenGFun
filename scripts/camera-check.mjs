@@ -21,9 +21,11 @@ await page.addInitScript(() => {
 await page.goto(URL_BASE, { waitUntil: 'networkidle' });
 await page.waitForSelector('.rail.left .rail-btn');
 
-// 點擊「實景」啟動相機（相機權限由 fake-ui 自動授予）
-await page.locator('.rail.left .rail-btn').first().click();
-await page.waitForTimeout(1200);
+// 進入實景頁應自動啟動相機（無需額外點擊）
+await page.waitForTimeout(1400);
+const autoVideo = await page.evaluate(() => !!document.querySelector('.scene-media video'));
+if (!autoVideo) await page.locator('.rail.left .rail-btn').first().click();
+await page.waitForTimeout(800);
 const videoState = await page.evaluate(() => {
   const v = document.querySelector('.scene-media video');
   return { hasVideo: !!v, w: v?.videoWidth ?? 0, h: v?.videoHeight ?? 0, readyState: v?.readyState ?? -1 };
@@ -51,5 +53,5 @@ const stored = await page.evaluate(async () => {
 });
 await page.screenshot({ path: join(OUT, 'camera-capture.png') });
 await browser.close();
-console.log(JSON.stringify({ videoState, toast, stored, errors }, null, 2));
-if (errors.length || stored.records < 1 || stored.magic !== '255,216,255') process.exitCode = 1;
+console.log(JSON.stringify({ autoVideo, videoState, toast, stored, errors }, null, 2));
+if (errors.length || !autoVideo || stored.records < 1 || stored.magic !== '255,216,255') process.exitCode = 1;
