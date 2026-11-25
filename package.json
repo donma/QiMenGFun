@@ -1,0 +1,39 @@
+{
+  "name": "qimengfun",
+  "private": true,
+  "version": "0.1.0-preview",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:qimen": "vitest run src/domain/qimen src/domain/calendar",
+    "test:timeflow": "vitest run src/time",
+    "icons": "node scripts/gen-icons.mjs",
+    "fonts": "node scripts/subset-fonts.mjs",
+    "test:layout": "node scripts/layout-check.mjs",
+    "test:sensor": "node scripts/sensor-check.mjs",
+    "test:camera": "node scripts/camera-check.mjs",
+    "test:sw": "node scripts/sw-update-check.mjs"
+  },
+  "dependencies": {
+    "fflate": "^0.8.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tyme4ts": "^1.5.6"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "fake-indexeddb": "^6.0.0",
+    "playwright-core": "^1.65.1",
+    "subset-font": "^2.9.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-plugin-pwa": "^0.21.1",
+    "vitest": "^2.1.8"
+  }
+}

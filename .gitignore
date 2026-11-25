@@ -1,0 +1,7 @@
+node_modules/
+_ref/
+dist/
+*.tsbuildinfo
+scripts/.cache/
+.DS_Store
+coverage/

@@ -1,0 +1,25 @@
+:root {
+  --navy: #041323;
+  --navy-2: #061a2c;
+  --navy-3: #0b2c44;
+  --line: #72D5FF;
+  --text: #D9F3FF;
+  --good: #36EBC0;
+  --bad: #DD6675;
+  --mixed: #F2C879;
+  --neutral: #7293B0;
+  --glass: rgba(4, 19, 35, .66);
+  --glass-strong: rgba(4, 19, 35, .88);
+  --glass-border: rgba(114, 213, 255, .28);
+  --glass-border-bright: rgba(114, 213, 255, .58);
+  --blur: 12px;
+  --radius: 16px;
+  --radius-sm: 11px;
+  --font-serif: 'QM Serif', 'Noto Serif TC', 'Songti TC', 'PingFang TC', 'Microsoft JhengHei', serif;
+  --font-sans: 'PingFang TC', 'Noto Sans TC', 'Microsoft JhengHei', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+  --sal: env(safe-area-inset-left, 0px);
+  --sar: env(safe-area-inset-right, 0px);
+  --tabh: 58px;
+}

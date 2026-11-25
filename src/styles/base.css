@@ -1,0 +1,36 @@
+@font-face {
+  font-family: 'QM Serif';
+  src: url('../assets/fonts/qm-serif-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: block;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; background: var(--navy); }
+body { font-family: var(--font-sans); color: var(--text); font-size: 15px; -webkit-font-smoothing: antialiased; font-synthesis: none; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+:focus-visible { outline: 2px solid var(--line); outline-offset: 2px; }
+b, strong, .serif { font-family: var(--font-serif); font-weight: 700; }
+.num { font-variant-numeric: tabular-nums; }
+.glass { background: var(--glass); border: 1px solid var(--glass-border); border-radius: var(--radius); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); }
+.hint { font-size: 13px; line-height: 1.7; color: #A6C6DE; margin: 10px 0; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.icon-btn { min-width: 44px; min-height: 44px; border-radius: 50%; border: 1px solid var(--glass-border); background: rgba(4,19,35,.5); display: inline-flex; align-items: center; justify-content: center; font-size: 18px; }
+.btn { min-height: 46px; padding: 0 16px; border-radius: var(--radius-sm); border: 1px solid var(--glass-border); background: rgba(11,44,68,.7); color: var(--text); font-size: 14px; }
+.btn.primary { background: linear-gradient(135deg, #0d4860, #0b2c44); border-color: var(--glass-border-bright); color: var(--good); font-family: var(--font-serif); }
+.btn.wide { width: 100%; }
+.mini-btn { position: relative; min-width: 44px; min-height: 36px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--glass-border); background: rgba(11,44,68,.7); font-size: 13px; }
+.mini-btn::after, .time-controls .now-btn::after { content: ''; position: absolute; inset: -6px 0; }
+.time-controls .now-btn { position: relative; }
+.time-controls .now-btn::after { inset: -10px 0; }
+.mini-btn.on { border-color: var(--good); color: var(--good); }
+.mini-btn.danger { color: var(--bad); }
+.checkline { display: flex; align-items: center; gap: 8px; min-height: 40px; font-size: 14px; }
+.checkline input { width: 18px; height: 18px; accent-color: var(--good); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+}
