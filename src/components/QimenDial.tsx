@@ -110,8 +110,8 @@ export const QimenDial = memo(function QimenDial({
           <stop offset="100%" stopColor="#DD6675" stopOpacity=".1" />
         </radialGradient>
         <filter id="glow" x="-8%" y="-8%" width="116%" height="116%">
-          <feGaussianBlur stdDeviation="3.2" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          <feGaussianBlur stdDeviation="2.4" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
 
@@ -121,16 +121,13 @@ export const QimenDial = memo(function QimenDial({
 
       {/* 靜態發光同心環（不隨羅盤轉動，濾鏡只繪製一次） */}
       <g filter="url(#glow)" fill="none" stroke={LINE}>
-        <circle cx={C} cy={C} r={R.rim} strokeWidth="3" />
-        <circle cx={C} cy={C} r={R.rim2} strokeWidth="1.6" opacity=".9" />
-        <circle cx={C} cy={C} r={233} strokeWidth="1.1" opacity=".75" />
-        <circle cx={C} cy={C} r={211} strokeWidth="1.1" opacity=".75" />
-        <circle cx={C} cy={C} r={R.dirOut} strokeWidth="2" opacity=".95" />
-        <circle cx={C} cy={C} r={R.dirIn} strokeWidth="2.2" />
-        <circle cx={C} cy={C} r={R.ring1In} strokeWidth="2.2" />
-        <circle cx={C} cy={C} r={R.ring2In} strokeWidth="2.2" />
-        <circle cx={C} cy={C} r={R.ring3In} strokeWidth="2.6" />
-        <circle cx={C} cy={C} r={R.ring3In - 6} strokeWidth="1.1" opacity=".8" />
+        <circle cx={C} cy={C} r={R.rim} strokeWidth="1.3" />
+        <circle cx={C} cy={C} r={R.dirOut} strokeWidth="1" opacity=".85" />
+        <circle cx={C} cy={C} r={R.dirIn} strokeWidth="1.2" />
+        <circle cx={C} cy={C} r={R.ring1In} strokeWidth="1.2" />
+        <circle cx={C} cy={C} r={R.ring2In} strokeWidth="1.2" />
+        <circle cx={C} cy={C} r={R.ring3In} strokeWidth="1.5" />
+        <circle cx={C} cy={C} r={R.ring3In - 6} strokeWidth="0.7" opacity=".75" />
       </g>
 
       <g className="dial-rot">
@@ -154,11 +151,11 @@ export const QimenDial = memo(function QimenDial({
         {/* 八方分隔線：一路延伸到最外圈，兩層疊出發光感 */}
         {DIRECTIONS.map((d) => {
           const [x1, y1] = pos(d.deg + 22.5, R.ring3In);
-          const [x2, y2] = pos(d.deg + 22.5, R.rim2);
+          const [x2, y2] = pos(d.deg + 22.5, R.rim);
           return (
             <g key={`div-${d.deg}`} pointerEvents="none">
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7FC8FF" strokeWidth="7" opacity=".3" />
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth="2" opacity="1" />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7FC8FF" strokeWidth="4" opacity=".2" />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth="1.1" opacity=".95" />
             </g>
           );
         })}
@@ -166,10 +163,10 @@ export const QimenDial = memo(function QimenDial({
         {/* 外刻度：每 5° 一格，15° 與 45° 加長 */}
         {Array.from({ length: 72 }, (_, i) => {
           const deg = i * 5;
-          const len = deg % 45 === 0 ? 10 : deg % 15 === 0 ? 6.5 : 3.5;
-          const [x1, y1] = pos(deg, R.rim2);
-          const [x2, y2] = pos(deg, R.rim2 - len);
-          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth={deg % 45 === 0 ? 2.2 : 1.1} opacity={deg % 45 === 0 ? 1 : 0.85} pointerEvents="none" />;
+          const len = deg % 45 === 0 ? 7 : deg % 15 === 0 ? 4.5 : 2.5;
+          const [x1, y1] = pos(deg, R.rim);
+          const [x2, y2] = pos(deg, R.rim - len);
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth={deg % 45 === 0 ? 1.2 : 0.6} opacity={deg % 45 === 0 ? 0.95 : 0.6} pointerEvents="none" />;
         })}
 
         {/* 方位字環 */}
@@ -251,3 +248,4 @@ export const QimenDial = memo(function QimenDial({
     </svg>
   );
 });
+

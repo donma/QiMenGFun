@@ -44,7 +44,7 @@
 .compass-screen > * { pointer-events: auto; }
 .dial-stage { position: relative; flex: 1 1 auto; min-height: 0; container-type: size; display: grid; place-items: center; pointer-events: none; }
 .dial-stage > * { pointer-events: auto; }
-.compass-wrap { width: min(100cqw, 100cqh, 620px); aspect-ratio: 1; position: relative; border-radius: 50%; box-shadow: 0 0 34px rgba(110,200,255,.42), 0 0 8px rgba(190,235,255,.3); transform: perspective(1100px) rotateX(3deg); --rot: 0deg; }
+.compass-wrap { width: min(100cqw, 100cqh, 620px); aspect-ratio: 1; position: relative; border-radius: 50%; box-shadow: 0 0 22px rgba(110,200,255,.26); transform: perspective(1100px) rotateX(3deg); --rot: 0deg; }
 .dial { width: 100%; height: 100%; display: block; overflow: visible; }
 .dial-rot { transform: rotate(calc(var(--rot, 0deg) * -1)); transform-origin: 250px 250px; }
 .upright { transform: rotate(var(--rot, 0deg)); }
@@ -197,4 +197,5 @@
 @media (vertical-viewport-segments: 2) {
   .compass-screen { padding-bottom: calc(100vh - env(viewport-segment-bottom 0 0) + var(--tabh) + 8px); }
 }
+
 
