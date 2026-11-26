@@ -8,7 +8,7 @@ export type ChartKind = 'hour' | 'ke';
 export type TimeBasis = 'civil' | 'apparent-solar';
 export type Dun = 'yang' | 'yin';
 export type Yuan = 'upper' | 'middle' | 'lower';
-export type Favorability = 'favorable' | 'mixed' | 'caution' | 'unknown';
+export type Favorability = 'favorable' | 'mixed' | 'caution' | 'neutral' | 'unknown';
 
 export interface ChartInput {
   instantMs: number;

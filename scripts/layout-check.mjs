@@ -70,6 +70,15 @@ for (const s of SCENARIOS) {
   });
   const dialogCovered = metrics.dial && metrics.dial.x >= -2 && metrics.dial.right <= metrics.vw + 2 && metrics.dial.y >= -2 && metrics.dial.bottom <= metrics.vh + 2;
   await page.screenshot({ path: join(OUT, `${s.id}.png`) });
+  // 顏色說明彈窗
+  if (s.id === 'iphone-14') {
+    await page.locator('.info-btn').click();
+    await page.waitForTimeout(250);
+    const legend = await page.evaluate(() => document.querySelector('.modal')?.textContent?.includes('綠色') ?? false);
+    await page.screenshot({ path: join(OUT, 'iphone-14-legend.png') });
+    if (!legend) errors.push('顏色說明彈窗未出現');
+    await page.locator('.modal .btn.primary').click();
+  }
   // 各分頁截圖（窄螢幕）
   if (s.id === 'iphone-14' || s.id === 'small-android') {
     for (const [tab, label] of [['analysis', '分析'], ['time', '時光'], ['tools', '工具'], ['records', '紀錄']]) {

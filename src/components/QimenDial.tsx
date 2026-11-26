@@ -35,10 +35,10 @@ function sector(r1: number, r2: number, from: number, to: number): string {
   return `M ${x1} ${y1} A ${r2} ${r2} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${r1} ${r1} 0 0 0 ${x4} ${y4} Z`;
 }
 
-const LINE = '#CDEEFF';
+const LINE = '#F0FAFF';
 const TEXT = '#F2FBFF';
 const DOOR_COLOR: Record<Favorability, string> = {
-  favorable: '#8CFFE6', mixed: '#F2FBFF', caution: '#FFA3B0', unknown: '#F2FBFF',
+  favorable: '#8CFFE6', mixed: '#FFE6A8', caution: '#FFA3B0', neutral: '#F2FBFF', unknown: '#F2FBFF',
 };
 
 /** 星空（純裝飾；固定座標，不隨機）。 */
@@ -49,13 +49,21 @@ const STARFIELD = Array.from({ length: 90 }, (_, i) => {
   return { x, y, r: i % 11 === 0 ? 1.7 : i % 4 === 0 ? 1.1 : 0.7, o: 0.25 + (i % 6) * 0.1 };
 });
 
-interface StackProps { deg: number; r: number; children: React.ReactNode }
+interface StackProps { deg: number; r: number; shift?: number; children: React.ReactNode }
 
-/** 以螢幕垂直方向堆疊多行文字；.upright 依 CSS 變數 --rot 反向旋轉，文字永遠正立且不互相重疊。 */
-function Stack({ deg, r, children }: StackProps) {
-  const [x, y] = pos(deg, r);
+/**
+ * 以螢幕垂直方向堆疊多行文字；.upright 依 CSS 變數 --rot 反向旋轉，文字永遠正立。
+ * shift：沿切線方向錯開（斜角格各環交錯排列，避免相鄰兩環的字左右相碰）。
+ * 底下的柔和暗底襯讓字不被發亮的線條干擾。
+ */
+function Stack({ deg, r, shift = 0, children }: StackProps) {
+  const rad = (deg * Math.PI) / 180;
+  const [px, py] = pos(deg, r);
+  const x = px + shift * Math.cos(rad);
+  const y = py + shift * Math.sin(rad);
   return (
     <g transform={`translate(${x} ${y})`} pointerEvents="none">
+      <circle r="27" fill="url(#plate)" />
       <g className="upright halo-layer" textAnchor="middle" dominantBaseline="central" aria-hidden="true">{children}</g>
       <g className="upright" textAnchor="middle" dominantBaseline="central">{children}</g>
     </g>
@@ -80,6 +88,11 @@ export const QimenDial = memo(function QimenDial({
           <stop offset="55%" stopColor="#0a2f7a" stopOpacity=".76" />
           <stop offset="100%" stopColor="#04174a" stopOpacity=".84" />
         </radialGradient>
+        <radialGradient id="plate" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#020c2c" stopOpacity=".42" />
+          <stop offset="70%" stopColor="#020c2c" stopOpacity=".18" />
+          <stop offset="100%" stopColor="#020c2c" stopOpacity="0" />
+        </radialGradient>
         <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
           <stop offset="0%" stopColor="#d6f1ff" stopOpacity=".7" />
           <stop offset="100%" stopColor="#d6f1ff" stopOpacity="0" />
@@ -88,9 +101,17 @@ export const QimenDial = memo(function QimenDial({
           <stop offset="0%" stopColor="#36EBC0" stopOpacity=".34" />
           <stop offset="100%" stopColor="#36EBC0" stopOpacity=".14" />
         </radialGradient>
+        <radialGradient id="mix-fill" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor="#F2C879" stopOpacity=".22" />
+          <stop offset="100%" stopColor="#F2C879" stopOpacity=".08" />
+        </radialGradient>
+        <radialGradient id="bad-fill" cx="50%" cy="50%" r="60%">
+          <stop offset="0%" stopColor="#DD6675" stopOpacity=".26" />
+          <stop offset="100%" stopColor="#DD6675" stopOpacity=".1" />
+        </radialGradient>
         <filter id="glow" x="-8%" y="-8%" width="116%" height="116%">
-          <feGaussianBlur stdDeviation="2.4" result="b" />
-          <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+          <feGaussianBlur stdDeviation="3.2" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
         </filter>
       </defs>
 
@@ -100,14 +121,16 @@ export const QimenDial = memo(function QimenDial({
 
       {/* 靜態發光同心環（不隨羅盤轉動，濾鏡只繪製一次） */}
       <g filter="url(#glow)" fill="none" stroke={LINE}>
-        <circle cx={C} cy={C} r={R.rim} strokeWidth="2.2" />
-        <circle cx={C} cy={C} r={R.rim2} strokeWidth="1" opacity=".8" />
-        <circle cx={C} cy={C} r={R.dirOut} strokeWidth="1.3" opacity=".9" />
-        <circle cx={C} cy={C} r={R.dirIn} strokeWidth="1.4" />
-        <circle cx={C} cy={C} r={R.ring1In} strokeWidth="1.4" />
-        <circle cx={C} cy={C} r={R.ring2In} strokeWidth="1.4" />
-        <circle cx={C} cy={C} r={R.ring3In} strokeWidth="1.6" />
-        <circle cx={C} cy={C} r={R.ring3In - 6} strokeWidth=".8" opacity=".7" />
+        <circle cx={C} cy={C} r={R.rim} strokeWidth="3" />
+        <circle cx={C} cy={C} r={R.rim2} strokeWidth="1.6" opacity=".9" />
+        <circle cx={C} cy={C} r={233} strokeWidth="1.1" opacity=".75" />
+        <circle cx={C} cy={C} r={211} strokeWidth="1.1" opacity=".75" />
+        <circle cx={C} cy={C} r={R.dirOut} strokeWidth="2" opacity=".95" />
+        <circle cx={C} cy={C} r={R.dirIn} strokeWidth="2.2" />
+        <circle cx={C} cy={C} r={R.ring1In} strokeWidth="2.2" />
+        <circle cx={C} cy={C} r={R.ring2In} strokeWidth="2.2" />
+        <circle cx={C} cy={C} r={R.ring3In} strokeWidth="2.6" />
+        <circle cx={C} cy={C} r={R.ring3In - 6} strokeWidth="1.1" opacity=".8" />
       </g>
 
       <g className="dial-rot">
@@ -118,7 +141,7 @@ export const QimenDial = memo(function QimenDial({
           const isFacing = facing === d.deg;
           return (
             <path key={`sec-${d.deg}`} d={sector(R.ring3In, R.dirOut, d.deg - 22.5, d.deg + 22.5)}
-              fill={fav === 'favorable' ? 'url(#good-fill)' : isSel ? 'rgba(160,220,255,.2)' : 'transparent'}
+              fill={fav === 'favorable' ? 'url(#good-fill)' : fav === 'mixed' ? 'url(#mix-fill)' : fav === 'caution' ? 'url(#bad-fill)' : isSel ? 'rgba(160,220,255,.2)' : 'transparent'}
               stroke={isSel ? '#8CFFE6' : isFacing ? '#FFFFFF' : 'none'}
               strokeWidth={isSel ? 2.8 : 2.2}
               className="dial-sector" role="button" tabIndex={0}
@@ -134,8 +157,8 @@ export const QimenDial = memo(function QimenDial({
           const [x2, y2] = pos(d.deg + 22.5, R.rim2);
           return (
             <g key={`div-${d.deg}`} pointerEvents="none">
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7FC8FF" strokeWidth="4" opacity=".22" />
-              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth="1.3" opacity=".95" />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7FC8FF" strokeWidth="7" opacity=".3" />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth="2" opacity="1" />
             </g>
           );
         })}
@@ -146,7 +169,7 @@ export const QimenDial = memo(function QimenDial({
           const len = deg % 45 === 0 ? 10 : deg % 15 === 0 ? 6.5 : 3.5;
           const [x1, y1] = pos(deg, R.rim2);
           const [x2, y2] = pos(deg, R.rim2 - len);
-          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth={deg % 45 === 0 ? 1.7 : 0.8} opacity={deg % 45 === 0 ? 1 : 0.7} pointerEvents="none" />;
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth={deg % 45 === 0 ? 2.2 : 1.1} opacity={deg % 45 === 0 ? 1 : 0.85} pointerEvents="none" />;
         })}
 
         {/* 方位字環 */}
@@ -165,7 +188,7 @@ export const QimenDial = memo(function QimenDial({
           const p = palaceById.get(d.palaceId);
           const fav = favors.get(d.palaceId) ?? 'unknown';
           return (
-            <Stack key={`r1-${d.deg}`} deg={d.deg} r={R.ring1}>
+            <Stack key={`r1-${d.deg}`} deg={d.deg} r={R.ring1} shift={d.deg % 90 === 0 ? 0 : -14}>
               <text y={-12} className="t-name" fill="#BFE6FF">{d.short}</text>
               <text y={11} className="t-door" fill={DOOR_COLOR[fav]}>{p?.door ?? '—'}</text>
             </Stack>
@@ -177,7 +200,7 @@ export const QimenDial = memo(function QimenDial({
           const p = palaceById.get(d.palaceId);
           const stars = p?.stars ?? [];
           return (
-            <Stack key={`r2-${d.deg}`} deg={d.deg} r={R.ring2}>
+            <Stack key={`r2-${d.deg}`} deg={d.deg} r={R.ring2} shift={d.deg % 90 === 0 ? 0 : 14}>
               {stars.length > 1 ? (
                 <>
                   <text y={-9} className="t-star" fill={TEXT}>{stars[0]}</text>
@@ -197,7 +220,7 @@ export const QimenDial = memo(function QimenDial({
         {DIRECTIONS.map((d) => {
           const p = palaceById.get(d.palaceId);
           return (
-            <Stack key={`r3-${d.deg}`} deg={d.deg} r={R.ring3}>
+            <Stack key={`r3-${d.deg}`} deg={d.deg} r={R.ring3} shift={d.deg % 90 === 0 ? 0 : -14}>
               <text y={-10} className="t-heaven" fill={TEXT}>{p?.heavenStems.join('') || '—'}</text>
               <text y={11} className="t-earth" fill="#86C9FF">{p?.earthStems.join('') ?? ''}</text>
             </Stack>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { HOUR_PROFILE_ID, computeHourChart } from './domain/qimen/hourEngine';
 import { KE_PROFILE_ID, computeKeChart } from './domain/qimen/keEngine';
-import { analyzeChart, EVENT_PROFILES, type EventKind } from './domain/analysis/eventProfiles';
+import { analyzeChart, EVENT_PROFILES, yongshenOf, type EventKind } from './domain/analysis/eventProfiles';
 import { DIRECTIONS } from './domain/compass/directions';
 import { PALACES } from './domain/qimen/tables';
 import type { PalaceId } from './domain/qimen/types';
@@ -49,6 +49,7 @@ export default function App() {
   const [gpsStatus, setGpsStatus] = useState('');
   const [camState, setCamState] = useState<CameraState>('idle');
   const [showCalibration, setShowCalibration] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
 
   const sceneRef = useRef<HTMLDivElement>(null);
   const videoHostRef = useRef<HTMLDivElement>(null);
@@ -358,13 +359,16 @@ export default function App() {
             ) : null}
             <div className="good-row">
               <span className="good-label">吉方</span>
+              <button className="info-btn" onClick={() => setShowLegend(true)} aria-label="綠色代表什麼">?</button>
               <div className="good-chips">
                 {goodDirs.length === 0
                   ? <span className="muted">此刻沒有明確吉方（{eventLabel}）</span>
                   : goodDirs.map((d) => {
                     const def = PALACES.find((p) => p.id === d.palaceId)!;
                     const pal = chart?.palaces.find((p) => p.id === d.palaceId);
-                    return <button key={d.palaceId} className={`chip ${selected === d.palaceId ? 'on' : ''}`} onClick={() => setSelected(d.palaceId as PalaceId)}>{def.name}{def.deg === null ? '' : ` ${def.deg}°`} · {pal?.door}</button>;
+                    const prof = EVENT_PROFILES.find((e) => e.id === event)!;
+                    const why = pal ? yongshenOf(pal, prof).join('＋') : '';
+                    return <button key={d.palaceId} className={`chip ${selected === d.palaceId ? 'on' : ''}`} onClick={() => setSelected(d.palaceId as PalaceId)}>{def.name}{def.deg === null ? '' : ` ${def.deg}°`} · {why}</button>;
                   })}
               </div>
             </div>
@@ -413,6 +417,27 @@ export default function App() {
           </button>
         ))}
       </nav>
+
+      {showLegend && (() => {
+        const prof = EVENT_PROFILES.find((e) => e.id === event)!;
+        return (
+          <div className="modal-backdrop" onClick={() => setShowLegend(false)}>
+            <div className="modal glass" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="顏色說明">
+              <h2>綠色是什麼意思？</h2>
+              <p className="hint">盤面上的顏色，是依你選的事件「<b>{prof.label}</b>」來判斷的：</p>
+              <ul className="legend-list">
+                <li><i className="lg lg-good" /><div><b>綠色（宜）</b><span>出現「{prof.label}」要找的取用神，而且沒有凶象。</span></div></li>
+                <li><i className="lg lg-mixed" /><div><b>黃色（吉凶並見）</b><span>有取用神，但同時也有凶象，要自己斟酌。</span></div></li>
+                <li><i className="lg lg-bad" /><div><b>紅色（宜慎）</b><span>只有凶象，沒有取用神。</span></div></li>
+                <li><i className="lg lg-plain" /><div><b>無色（平）</b><span>沒有明顯的吉凶象意。</span></div></li>
+              </ul>
+              <p className="hint"><b>{prof.label}的取用神：</b>{[...prof.favoredDoors, ...prof.favoredStars, ...prof.favoredMarkers].join('、')}。<br /><b>凶象：</b>死門、驚門、天蓬、天芮、天柱、白虎、玄武、螣蛇、旬空。</p>
+              <p className="hint">所以換一個事件，綠色的位置就會跟著變；同一事件，不同時間也會因為盤局改變而落在不同的門。這是依傳統象意整理的參考，不是預測。</p>
+              <button className="btn primary" onClick={() => setShowLegend(false)}>知道了</button>
+            </div>
+          </div>
+        );
+      })()}
 
       {showCalibration && (
         <div className="modal-backdrop" onClick={() => setShowCalibration(false)}>

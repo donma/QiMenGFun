@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { TimeState } from '../time/TimeController';
 import { HOUR_PROFILE_ID, computeHourChart } from '../domain/qimen/hourEngine';
-import { analyzeChart, EVENT_PROFILES, type EventKind } from '../domain/analysis/eventProfiles';
+import { analyzeChart, EVENT_PROFILES, yongshenOf, type EventKind } from '../domain/analysis/eventProfiles';
 import { civilParts, resolveCivilInput, formatOffset } from '../domain/calendar/timezone';
 import { PALACES } from '../domain/qimen/tables';
 
@@ -55,7 +55,7 @@ export function TimePanel({ time, event, onEvent, onSetInstant, onNow, onJump, o
         .map((d) => {
           const def = PALACES.find((p) => p.id === d.palaceId)!;
           const pal = ch.palaces.find((p) => p.id === d.palaceId);
-          return { id: d.palaceId, text: `${def.name}${def.deg === null ? '' : def.deg + '°'} ${pal?.door ?? ''}` };
+          return { id: d.palaceId, text: `${def.name}${def.deg === null ? '' : def.deg + '°'} ${yongshenOf(pal!, EVENT_PROFILES.find((e) => e.id === event)!).join('＋')}` };
         });
       out.push({
         startMs: ch.validFromMs, endMs: ch.validUntilMs, branch: ch.pillars.hour.slice(1),
