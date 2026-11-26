@@ -17,7 +17,7 @@ export interface QimenDialProps {
 const C = 250;
 /** 同心環半徑（viewBox 500）。每一環只放一類資料，避免疊字。 */
 const R = {
-  disc: 247, tickOut: 243, dirOut: 238, dirIn: 206,
+  rim: 248, rim2: 244, tickIn: 236, dirOut: 238, dirIn: 206,
   ring1In: 160, ring2In: 116, ring3In: 74, taiji: 56,
   dirText: 223, ring1: 181, ring2: 138, ring3: 95,
 };
@@ -35,15 +35,18 @@ function sector(r1: number, r2: number, from: number, to: number): string {
   return `M ${x1} ${y1} A ${r2} ${r2} 0 0 1 ${x2} ${y2} L ${x3} ${y3} A ${r1} ${r1} 0 0 0 ${x4} ${y4} Z`;
 }
 
+const LINE = '#CDEEFF';
+const TEXT = '#F2FBFF';
 const DOOR_COLOR: Record<Favorability, string> = {
-  favorable: '#7CFFE0', mixed: '#FFE6A8', caution: '#FF9AA8', unknown: '#EAF8FF',
+  favorable: '#8CFFE6', mixed: '#F2FBFF', caution: '#FFA3B0', unknown: '#F2FBFF',
 };
 
-const STARFIELD = Array.from({ length: 54 }, (_, i) => {
+/** 星空（純裝飾；固定座標，不隨機）。 */
+const STARFIELD = Array.from({ length: 90 }, (_, i) => {
   const a = (i * 137.508) % 360;
-  const rr = 80 + ((i * 53) % 150);
+  const rr = 20 + ((i * 47) % 225);
   const [x, y] = pos(a, rr);
-  return { x, y, r: i % 9 === 0 ? 1.5 : 0.8, o: 0.18 + (i % 5) * 0.08 };
+  return { x, y, r: i % 11 === 0 ? 1.7 : i % 4 === 0 ? 1.1 : 0.7, o: 0.25 + (i % 6) * 0.1 };
 });
 
 interface StackProps { deg: number; r: number; children: React.ReactNode }
@@ -53,6 +56,7 @@ function Stack({ deg, r, children }: StackProps) {
   const [x, y] = pos(deg, r);
   return (
     <g transform={`translate(${x} ${y})`} pointerEvents="none">
+      <g className="upright halo-layer" textAnchor="middle" dominantBaseline="central" aria-hidden="true">{children}</g>
       <g className="upright" textAnchor="middle" dominantBaseline="central">{children}</g>
     </g>
   );
@@ -72,32 +76,77 @@ export const QimenDial = memo(function QimenDial({
     <svg className={`dial ${reducedMotion ? 'still' : ''}`} viewBox="0 0 500 500" role="img" aria-label="奇門方位盤">
       <defs>
         <radialGradient id="dial-bg" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#0d3a63" stopOpacity=".78" />
-          <stop offset="60%" stopColor="#06213f" stopOpacity=".7" />
-          <stop offset="100%" stopColor="#03122a" stopOpacity=".6" />
+          <stop offset="0%" stopColor="#1556b8" stopOpacity=".74" />
+          <stop offset="55%" stopColor="#0a2f7a" stopOpacity=".76" />
+          <stop offset="100%" stopColor="#04174a" stopOpacity=".84" />
         </radialGradient>
         <radialGradient id="core-glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#bfe9ff" stopOpacity=".55" />
-          <stop offset="100%" stopColor="#bfe9ff" stopOpacity="0" />
+          <stop offset="0%" stopColor="#d6f1ff" stopOpacity=".7" />
+          <stop offset="100%" stopColor="#d6f1ff" stopOpacity="0" />
         </radialGradient>
         <radialGradient id="good-fill" cx="50%" cy="50%" r="60%">
-          <stop offset="0%" stopColor="#36EBC0" stopOpacity=".32" />
-          <stop offset="100%" stopColor="#36EBC0" stopOpacity=".12" />
+          <stop offset="0%" stopColor="#36EBC0" stopOpacity=".34" />
+          <stop offset="100%" stopColor="#36EBC0" stopOpacity=".14" />
         </radialGradient>
+        <filter id="glow" x="-8%" y="-8%" width="116%" height="116%">
+          <feGaussianBlur stdDeviation="2.4" result="b" />
+          <feMerge><feMergeNode in="b" /><feMergeNode in="b" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
       </defs>
 
-      <circle cx={C} cy={C} r={R.disc + 2} fill="none" stroke="#72D5FF" strokeWidth="6" opacity=".16" />
-      <circle cx={C} cy={C} r={R.disc} fill="url(#dial-bg)" />
-      {STARFIELD.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#E8F6FF" opacity={s.o} />)}
+      {/* 底盤與星空 */}
+      <circle cx={C} cy={C} r={R.rim} fill="url(#dial-bg)" />
+      {STARFIELD.map((s, i) => <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#EAF7FF" opacity={s.o} />)}
+
+      {/* 靜態發光同心環（不隨羅盤轉動，濾鏡只繪製一次） */}
+      <g filter="url(#glow)" fill="none" stroke={LINE}>
+        <circle cx={C} cy={C} r={R.rim} strokeWidth="2.2" />
+        <circle cx={C} cy={C} r={R.rim2} strokeWidth="1" opacity=".8" />
+        <circle cx={C} cy={C} r={R.dirOut} strokeWidth="1.3" opacity=".9" />
+        <circle cx={C} cy={C} r={R.dirIn} strokeWidth="1.4" />
+        <circle cx={C} cy={C} r={R.ring1In} strokeWidth="1.4" />
+        <circle cx={C} cy={C} r={R.ring2In} strokeWidth="1.4" />
+        <circle cx={C} cy={C} r={R.ring3In} strokeWidth="1.6" />
+        <circle cx={C} cy={C} r={R.ring3In - 6} strokeWidth=".8" opacity=".7" />
+      </g>
 
       <g className="dial-rot">
+        {/* 扇區（可點） */}
+        {DIRECTIONS.map((d) => {
+          const fav = favors.get(d.palaceId) ?? 'unknown';
+          const isSel = selected === d.palaceId;
+          const isFacing = facing === d.deg;
+          return (
+            <path key={`sec-${d.deg}`} d={sector(R.ring3In, R.dirOut, d.deg - 22.5, d.deg + 22.5)}
+              fill={fav === 'favorable' ? 'url(#good-fill)' : isSel ? 'rgba(160,220,255,.2)' : 'transparent'}
+              stroke={isSel ? '#8CFFE6' : isFacing ? '#FFFFFF' : 'none'}
+              strokeWidth={isSel ? 2.8 : 2.2}
+              className="dial-sector" role="button" tabIndex={0}
+              aria-label={`${d.short} ${palaceById.get(d.palaceId)?.door ?? ''}`}
+              onClick={() => onSelect(d.palaceId)}
+              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(d.palaceId); } }} />
+          );
+        })}
+
+        {/* 八方分隔線：一路延伸到最外圈，兩層疊出發光感 */}
+        {DIRECTIONS.map((d) => {
+          const [x1, y1] = pos(d.deg + 22.5, R.ring3In);
+          const [x2, y2] = pos(d.deg + 22.5, R.rim2);
+          return (
+            <g key={`div-${d.deg}`} pointerEvents="none">
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="#7FC8FF" strokeWidth="4" opacity=".22" />
+              <line x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth="1.3" opacity=".95" />
+            </g>
+          );
+        })}
+
         {/* 外刻度：每 5° 一格，15° 與 45° 加長 */}
         {Array.from({ length: 72 }, (_, i) => {
           const deg = i * 5;
-          const len = deg % 45 === 0 ? 9 : deg % 15 === 0 ? 6 : 3.5;
-          const [x1, y1] = pos(deg, R.tickOut);
-          const [x2, y2] = pos(deg, R.tickOut - len);
-          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#D6F1FF" strokeWidth={deg % 45 === 0 ? 1.6 : 0.8} opacity={deg % 45 === 0 ? 0.95 : 0.6} />;
+          const len = deg % 45 === 0 ? 10 : deg % 15 === 0 ? 6.5 : 3.5;
+          const [x1, y1] = pos(deg, R.rim2);
+          const [x2, y2] = pos(deg, R.rim2 - len);
+          return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={LINE} strokeWidth={deg % 45 === 0 ? 1.7 : 0.8} opacity={deg % 45 === 0 ? 1 : 0.7} pointerEvents="none" />;
         })}
 
         {/* 方位字環 */}
@@ -106,37 +155,9 @@ export const QimenDial = memo(function QimenDial({
           const label = cardinal ? { 0: '北', 90: '東', 180: '南', 270: '西' }[d.deg as 0 | 90 | 180 | 270] : { 45: '東北', 135: '東南', 225: '西南', 315: '西北' }[d.deg as 45 | 135 | 225 | 315];
           return (
             <Stack key={`dir-${d.deg}`} deg={d.deg} r={R.dirText}>
-              <text className={cardinal ? 't-dir-main' : 't-dir-sub'} fill="#EAF8FF">{label}</text>
+              <text className={cardinal ? 't-dir-main' : 't-dir-sub'} fill={TEXT}>{label}</text>
             </Stack>
           );
-        })}
-
-        {/* 扇區（可點） */}
-        {DIRECTIONS.map((d) => {
-          const fav = favors.get(d.palaceId) ?? 'unknown';
-          const isSel = selected === d.palaceId;
-          const isFacing = facing === d.deg;
-          return (
-            <path key={`sec-${d.deg}`} d={sector(R.ring3In, R.dirIn, d.deg - 22.5, d.deg + 22.5)}
-              fill={fav === 'favorable' ? 'url(#good-fill)' : isSel ? 'rgba(114,213,255,.16)' : 'rgba(10,50,92,.22)'}
-              stroke={isSel ? '#7CFFE0' : isFacing ? '#FFFFFF' : 'none'}
-              strokeWidth={isSel ? 2.6 : 2}
-              className="dial-sector" role="button" tabIndex={0}
-              aria-label={`${d.short} ${palaceById.get(d.palaceId)?.door ?? ''}`}
-              onClick={() => onSelect(d.palaceId)}
-              onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(d.palaceId); } }} />
-          );
-        })}
-
-        {/* 同心線與八方分隔線 */}
-        {[R.disc, R.dirOut, R.dirIn, R.ring1In, R.ring2In, R.ring3In].map((r, i) => (
-          <circle key={r} cx={C} cy={C} r={r} fill="none" stroke="#CFEFFF" strokeWidth={i === 0 ? 2 : 1.1} opacity={i === 0 ? 0.95 : 0.7} />
-        ))}
-        <circle cx={C} cy={C} r={R.disc - 5} fill="none" stroke="#CFEFFF" strokeWidth=".6" opacity=".4" />
-        {DIRECTIONS.map((d) => {
-          const [x1, y1] = pos(d.deg + 22.5, R.ring3In);
-          const [x2, y2] = pos(d.deg + 22.5, R.dirOut);
-          return <line key={`div-${d.deg}`} x1={x1} y1={y1} x2={x2} y2={y2} stroke="#CFEFFF" strokeWidth="1" opacity=".6" />;
         })}
 
         {/* 宮名＋八門 */}
@@ -159,44 +180,43 @@ export const QimenDial = memo(function QimenDial({
             <Stack key={`r2-${d.deg}`} deg={d.deg} r={R.ring2}>
               {stars.length > 1 ? (
                 <>
-                  <text y={-15} className="t-star" fill="#D4ECFF">{stars[0]}</text>
-                  <text y={1} className="t-star-sub" fill="#B9DDF5">{stars[1]}</text>
-                  <text y={16} className="t-deity" fill="#9FC4DD">{p?.deity ?? ''}</text>
+                  <text y={-9} className="t-star" fill={TEXT}>{stars[0]}</text>
+                  <text y={9} className="t-star-sub" fill="#BFE6FF">{stars[1]}</text>
                 </>
               ) : (
                 <>
-                  <text y={-9} className="t-star" fill="#D4ECFF">{stars[0] ?? '—'}</text>
-                  <text y={12} className="t-deity" fill="#9FC4DD">{p?.deity ?? ''}</text>
+                  <text y={-9} className="t-star" fill={TEXT}>{stars[0] ?? '—'}</text>
+                  <text y={12} className="t-deity" fill="#A8D2EE">{p?.deity ?? ''}</text>
                 </>
               )}
             </Stack>
           );
         })}
 
-        {/* 天盤干（金）／地盤干（藍） */}
+        {/* 天盤干（白）／地盤干（藍） */}
         {DIRECTIONS.map((d) => {
           const p = palaceById.get(d.palaceId);
           return (
             <Stack key={`r3-${d.deg}`} deg={d.deg} r={R.ring3}>
-              <text y={-10} className="t-heaven" fill="#FFE29A">{p?.heavenStems.join('') || '—'}</text>
-              <text y={11} className="t-earth" fill="#8FD3FF">{p?.earthStems.join('') ?? ''}</text>
+              <text y={-10} className="t-heaven" fill={TEXT}>{p?.heavenStems.join('') || '—'}</text>
+              <text y={11} className="t-earth" fill="#86C9FF">{p?.earthStems.join('') ?? ''}</text>
             </Stack>
           );
         })}
+      </g>
 
-        {/* 太極中宮 */}
-        <g role="button" tabIndex={0} aria-label="中宮太極" className="taiji" onClick={() => onSelect(5)} onKeyDown={(e) => { if (e.key === 'Enter') onSelect(5); }}>
-          <circle cx={C} cy={C} r={R.ring3In - 1} fill="url(#core-glow)" />
-          <circle cx={C} cy={C} r={R.taiji + 7} fill="none" stroke="#CFEFFF" strokeWidth="1.2" opacity=".85" />
-          <circle cx={C} cy={C} r={R.taiji + 3} fill="none" stroke="#CFEFFF" strokeWidth=".6" opacity=".5" />
-          <g className={reducedMotion ? '' : 'taiji-spin'}>
-            <circle cx={C} cy={C} r={R.taiji} fill="#041a33" />
-            <path d={`M ${C} ${C - R.taiji} A ${R.taiji} ${R.taiji} 0 0 1 ${C} ${C + R.taiji} A ${R.taiji / 2} ${R.taiji / 2} 0 0 1 ${C} ${C} A ${R.taiji / 2} ${R.taiji / 2} 0 0 0 ${C} ${C - R.taiji} Z`} fill="#F4FBFF" />
-            <circle cx={C} cy={C - R.taiji / 2} r="11" fill="#041a33" />
-            <circle cx={C} cy={C + R.taiji / 2} r="11" fill="#F4FBFF" />
-            <circle cx={C} cy={C - R.taiji / 2} r="11" fill="none" stroke="#9FD9F5" strokeWidth="1.2" />
-            <circle cx={C} cy={C + R.taiji / 2} r="11" fill="none" stroke="#04284a" strokeWidth="1.2" />
-          </g>
+      {/* 太極中宮（置中、不隨羅盤轉動） */}
+      <g role="button" tabIndex={0} aria-label="中宮太極" className="taiji" onClick={() => onSelect(5)} onKeyDown={(e) => { if (e.key === 'Enter') onSelect(5); }}>
+        <circle cx={C} cy={C} r={R.ring3In - 1} fill="url(#core-glow)" />
+        <circle cx={C} cy={C} r={R.taiji + 8} fill="none" stroke={LINE} strokeWidth="1.6" opacity=".95" />
+        <circle cx={C} cy={C} r={R.taiji + 4} fill="none" stroke={LINE} strokeWidth=".7" opacity=".6" />
+        <g className={reducedMotion ? '' : 'taiji-spin'}>
+          <circle cx={C} cy={C} r={R.taiji} fill="#041a3d" />
+          <path d={`M ${C} ${C - R.taiji} A ${R.taiji} ${R.taiji} 0 0 1 ${C} ${C + R.taiji} A ${R.taiji / 2} ${R.taiji / 2} 0 0 1 ${C} ${C} A ${R.taiji / 2} ${R.taiji / 2} 0 0 0 ${C} ${C - R.taiji} Z`} fill="#F7FCFF" />
+          <circle cx={C} cy={C - R.taiji / 2} r="11" fill="#041a3d" />
+          <circle cx={C} cy={C + R.taiji / 2} r="11" fill="#F7FCFF" />
+          <circle cx={C} cy={C - R.taiji / 2} r="11" fill="none" stroke="#9FD9F5" strokeWidth="1.3" />
+          <circle cx={C} cy={C + R.taiji / 2} r="11" fill="none" stroke="#0a3a70" strokeWidth="1.3" />
         </g>
       </g>
 
@@ -208,4 +228,3 @@ export const QimenDial = memo(function QimenDial({
     </svg>
   );
 });
-

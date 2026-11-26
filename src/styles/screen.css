@@ -50,7 +50,8 @@
 .upright { transform: rotate(var(--rot, 0deg)); }
 .dial-sector { cursor: pointer; transition: fill .4s ease; }
 .dial-sector:hover { fill: rgba(114,213,255,.2); }
-.dial text { font-family: var(--font-serif); paint-order: stroke; stroke: rgba(2,10,24,.9); stroke-width: 3px; stroke-linejoin: round; user-select: none; }
+.dial text { font-family: var(--font-serif); paint-order: stroke; stroke: rgba(40,130,255,.5); stroke-width: 2.6px; stroke-linejoin: round; user-select: none; }
+.dial .halo-layer text { fill: #6EC2FF; stroke: #6EC2FF; stroke-width: 6px; opacity: .24; }
 .dial .t-dir-main { font-size: 20px; letter-spacing: .06em; }
 .dial .t-dir-sub { font-size: 13px; }
 .dial .t-name { font-size: 17px; }
@@ -150,7 +151,8 @@
   .dial .t-star-sub { font-size: 15px; }
   .dial .t-heaven { font-size: 21px; }
   .dial .t-earth { font-size: 18px; }
-  .dial text { stroke-width: 3.4px; }
+  .dial text { stroke-width: 2.8px; }
+  .dial .halo-layer text { stroke-width: 6px; }
 }
 @media (max-width: 360px) { .top-date b { font-size: 14px; } .brand-title { font-size: 17px; } }
 
@@ -183,3 +185,4 @@
 @media (vertical-viewport-segments: 2) {
   .compass-screen { padding-bottom: calc(100vh - env(viewport-segment-bottom 0 0) + var(--tabh) + 8px); }
 }
+
